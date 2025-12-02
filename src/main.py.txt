@@ -1,0 +1,111 @@
+import time
+
+class Resource:
+    def __init__(self, name, total_instances):
+        self.name = name
+        self.total = total_instances
+        self.available = total_instances
+        self.allocated = 0
+
+    def __repr__(self):
+        return f"{self.name} (Available: {self.available}/{self.total})"
+
+class Process:
+    def __init__(self, pid, max_needs):
+        self.pid = pid
+        self.max_needs = max_needs  # Dictionary {resource_name: count}
+        self.allocated = {r: 0 for r in max_needs}
+        self.finished = False
+
+    def request_resource(self, resource_name, count):
+        print(f"[Request] Process {self.pid} requesting {count} instances of {resource_name}...")
+        return (resource_name, count)
+
+    def release_all(self, resources_map):
+        print(f"[Release] Process {self.pid} releasing all resources.")
+        for r_name, count in self.allocated.items():
+            if count > 0:
+                resources_map[r_name].available += count
+                resources_map[r_name].allocated -= count
+                self.allocated[r_name] = 0
+        self.finished = True
+
+class OperatingSystem:
+    def __init__(self):
+        self.resources = {}
+        self.processes = []
+        self.log = []
+
+    def add_resource(self, name, total_instances):
+        self.resources[name] = Resource(name, total_instances)
+
+    def add_process(self, pid, max_needs):
+        # max_needs example: {'CPU': 2, 'Memory': 1}
+        self.processes.append(Process(pid, max_needs))
+
+    def is_safe_state(self, process, resource_name, count):
+        """
+        Standard Banker's Algorithm / Safety Check.
+        LATER: This is where we will inject the AI Model to predict probability of deadlock
+        instead of just checking current availability.
+        """
+        res = self.resources[resource_name]
+        
+        # 1. Basic check: Do we have enough available right now?
+        if res.available < count:
+            print(f"  -> [Deny] Not enough {resource_name} available.")
+            return False
+
+        # 2. Safety Check (Simplified for Starter Code)
+        # In a full Banker's implementation, you would simulate the allocation 
+        # and check if a safe sequence exists. 
+        # For now, we allow if available > 0 to simulate potential deadlock scenarios later.
+        return True
+
+    def handle_request(self, process, resource_name, count):
+        # 1. Check Safety (Traditional)
+        if self.is_safe_state(process, resource_name, count):
+            # Allocate
+            self.resources[resource_name].available -= count
+            self.resources[resource_name].allocated += count
+            process.allocated[resource_name] += count
+            print(f"  -> [Grant] Allocated {count} {resource_name} to Process {process.pid}")
+            return True
+        else:
+            # Wait / Block
+            print(f"  -> [Block] Process {process.pid} must wait.")
+            return False
+
+    def print_system_state(self):
+        print("\n--- SYSTEM STATE ---")
+        for r in self.resources.values():
+            print(r)
+        print("--------------------")
+
+# ==========================================
+# Main Execution Block (Test Driver)
+# ==========================================
+if __name__ == "__main__":
+    os_sim = OperatingSystem()
+
+    # 1. Setup Resources
+    os_sim.add_resource("CPU", 2)
+    os_sim.add_resource("Memory", 4)
+
+    # 2. Setup Processes
+    # Process 1 needs 1 CPU and 2 Memory max
+    os_sim.add_process(1, {"CPU": 1, "Memory": 2})
+    # Process 2 needs 2 CPU and 1 Memory max
+    os_sim.add_process(2, {"CPU": 2, "Memory": 1})
+
+    p1 = os_sim.processes[0]
+    p2 = os_sim.processes[1]
+
+    # 3. Simulate Requests
+    os_sim.handle_request(p1, "CPU", 1)
+    os_sim.handle_request(p2, "Memory", 2)
+    
+    os_sim.print_system_state()
+    
+    # Simulate a risky request (p2 requests CPU while p1 holds it)
+    os_sim.handle_request(p2, "CPU", 2)
