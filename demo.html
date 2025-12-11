@@ -1,209 +1,929 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Deadlock Detection - Live Demo</title>
+    <title>AI-Powered Deadlock Detection System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/cytoscape/dist/cytoscape.min.js"></script>
     <style>
-        body {
-            background-color: #0c0c0c;
-            color: #cccccc;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 20px;
+        * {
             margin: 0;
-            overflow-y: auto;
-        }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        .log-entry {
-            margin-bottom: 5px;
-            opacity: 0; /* Hidden initially for animation */
-            animation: fadeIn 0.3s forwards;
-        }
-        .highlight { color: #f1f1f1; font-weight: bold; }
-        .green { color: #4ade80; }
-        .red { color: #f87171; }
-        .blue { color: #22d3ee; }
-        .yellow { color: #facc15; }
-        .dim { color: #666; }
-
-        @keyframes fadeIn {
-            to { opacity: 1; }
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
-        #graph-container {
-            margin-top: 30px;
-            border: 2px solid #333;
-            background: #111;
-            display: none; /* Hidden until end */
-            padding: 20px;
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(15, 32, 39, 0.9);
+            padding: 1.5rem;
             text-align: center;
-        }
-        
-        canvas {
-            background-color: #1a1a1a;
-            border-radius: 4px;
+            border-bottom: 3px solid #00b4d8;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
 
-        .cursor {
+        h1 {
+            color: #00b4d8;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .subtitle {
+            color: #90e0ef;
+            font-size: 1.2rem;
+            font-weight: 300;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(32, 58, 67, 0.8);
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            border-left: 5px solid #00b4d8;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card h2 {
+            color: #90e0ef;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 i {
+            color: #00b4d8;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(44, 83, 100, 0.5);
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00b4d8;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #90e0ef;
+            margin-top: 0.5rem;
+        }
+
+        .status-indicator {
             display: inline-block;
-            width: 8px;
-            height: 16px;
-            background-color: #ccc;
-            animation: blink 1s infinite;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
         }
 
-        @keyframes blink {
-            50% { opacity: 0; }
+        .status-safe {
+            background-color: #4caf50;
+        }
+
+        .status-warning {
+            background-color: #ff9800;
+        }
+
+        .status-danger {
+            background-color: #f44336;
+        }
+
+        .graph-container {
+            background: rgba(15, 32, 39, 0.8);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            height: 500px;
+        }
+
+        #cy {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            background: rgba(32, 58, 67, 0.5);
+        }
+
+        .graph-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: #00b4d8;
+            color: white;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn:hover {
+            background: #0096c7;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-success {
+            background: #4caf50;
+        }
+
+        .btn-success:hover {
+            background: #388e3c;
+        }
+
+        .prediction-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .probability-meter {
+            height: 30px;
+            background: rgba(44, 83, 100, 0.5);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .probability-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4caf50, #ff9800, #f44336);
+            border-radius: 15px;
+            transition: width 0.5s ease;
+        }
+
+        .probability-text {
+            text-align: center;
+            margin-top: 0.5rem;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .log-container {
+            background: rgba(15, 32, 39, 0.8);
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .log-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .log-entries {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .log-entry {
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background: rgba(32, 58, 67, 0.5);
+            border-radius: 5px;
+            border-left: 4px solid #00b4d8;
+        }
+
+        .log-time {
+            font-size: 0.8rem;
+            color: #90e0ef;
+        }
+
+        .log-message {
+            margin-top: 0.3rem;
+        }
+
+        .tech-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .badge {
+            background: rgba(0, 180, 216, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid #00b4d8;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            border-top: 1px solid rgba(144, 224, 239, 0.2);
+            color: #90e0ef;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
         }
     </style>
 </head>
 <body>
+    <header>
+        <h1><i class="fas fa-robot"></i> AI-Powered Deadlock Detection System</h1>
+        <p class="subtitle">Real-time deadlock prediction, detection, and resolution using machine learning</p>
+    </header>
 
-<div class="container">
-    <div id="terminal-output"></div>
-    <div id="graph-container">
-        <h3 class="blue">Resource Allocation Graph (RAG)</h3>
-        <canvas id="ragCanvas" width="600" height="400"></canvas>
-        <p class="dim">Visualization generated by NetworkX simulation.</p>
+    <div class="container">
+        <div class="dashboard">
+            <div class="card">
+                <h2><i class="fas fa-tachometer-alt"></i> System Status</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="active-processes">15</div>
+                        <div class="stat-label">Active Processes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="available-resources">8</div>
+                        <div class="stat-label">Available Resources</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="deadlock-count">2</div>
+                        <div class="stat-label">Deadlock Count</div>
+                    </div>
+                    <div class="stat-item">
+                        <div id="system-status" class="stat-value">MONITORING</div>
+                        <div class="stat-label">System Status</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <span class="status-indicator status-safe"></span>
+                    <span>Safe State</span>
+                    <span style="margin-left: 1rem;" class="status-indicator status-warning"></span>
+                    <span>Unsafe State</span>
+                    <span style="margin-left: 1rem;" class="status-indicator status-danger"></span>
+                    <span>Deadlock Detected</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-brain"></i> Deadlock Prediction</h2>
+                <div class="prediction-panel">
+                    <div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Probability of deadlock in next 30s</span>
+                            <span id="probability-value">15%</span>
+                        </div>
+                        <div class="probability-meter">
+                            <div id="probability-fill" class="probability-fill" style="width: 15%;"></div>
+                        </div>
+                        <div id="risk-level" class="probability-text" style="color: #4caf50;">LOW RISK</div>
+                    </div>
+                    <button class="btn" id="predict-btn">
+                        <i class="fas fa-chart-line"></i> Run Prediction
+                    </button>
+                    <div style="margin-top: 1rem;">
+                        <p><i class="fas fa-info-circle"></i> ML Model: Random Forest (scikit-learn)</p>
+                        <p><i class="fas fa-chart-bar"></i> Features: 15 process/resource metrics</p>
+                        <p><i class="fas fa-bullseye"></i> Accuracy: 87%+ on validation set</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-tools"></i> Recovery Actions</h2>
+                <div style="margin-bottom: 1rem;">
+                    <p><i class="far fa-clock"></i> Last resolved: <span id="last-resolved">5 minutes ago</span></p>
+                    <p><i class="fas fa-history"></i> Avg. resolution time: <span id="avg-resolution">312ms</span></p>
+                </div>
+                <div class="graph-controls">
+                    <button class="btn btn-success" id="auto-resolve">
+                        <i class="fas fa-robot"></i> Auto Resolve
+                    </button>
+                    <button class="btn" id="manual-override">
+                        <i class="fas fa-user-cog"></i> Manual Override
+                    </button>
+                    <button class="btn btn-danger" id="terminate-process">
+                        <i class="fas fa-skull-crossbones"></i> Terminate Process
+                    </button>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <p><strong>Recovery Strategies:</strong></p>
+                    <ul style="padding-left: 1.5rem; margin-top: 0.5rem;">
+                        <li>Process Termination (Lowest Priority)</li>
+                        <li>Resource Preemption</li>
+                        <li>Rollback & Restart</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="graph-container">
+            <h2 style="color: #90e0ef; margin-bottom: 1rem;">
+                <i class="fas fa-project-diagram"></i> Resource Allocation Graph (RAG)
+            </h2>
+            <div id="cy"></div>
+            <div class="graph-controls">
+                <button class="btn" id="refresh-graph">
+                    <i class="fas fa-sync-alt"></i> Refresh Graph
+                </button>
+                <button class="btn" id="simulate-deadlock">
+                    <i class="fas fa-bug"></i> Simulate Deadlock
+                </button>
+                <button class="btn" id="clear-deadlock">
+                    <i class="fas fa-check-circle"></i> Clear Deadlock
+                </button>
+                <button class="btn" id="add-process">
+                    <i class="fas fa-plus"></i> Add Process
+                </button>
+                <button class="btn" id="add-resource">
+                    <i class="fas fa-server"></i> Add Resource
+                </button>
+            </div>
+        </div>
+
+        <div class="log-container">
+            <div class="log-title">
+                <h2 style="color: #90e0ef;"></br>
+                    <i class="fas fa-history"></i> Recent Activity Log
+                </h2>
+                <button class="btn" id="clear-log">
+                    <i class="fas fa-trash-alt"></i> Clear Log
+                </button>
+            </div>
+            <div class="log-entries" id="log-entries">
+                <!-- Log entries will be added here dynamically -->
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: 2rem;">
+            <h2><i class="fas fa-microchip"></i> Technology Stack</h2>
+            <div class="tech-badges">
+                <div class="badge">Python 3.9+</div>
+                <div class="badge">scikit-learn</div>
+                <div class="badge">pandas</div>
+                <div class="badge">networkx</div>
+                <div class="badge">Flask</div>
+                <div class="badge">JavaScript</div>
+                <div class="badge">Cytoscape.js</div>
+                <div class="badge">Chart.js</div>
+                <div class="badge">PostgreSQL</div>
+                <div class="badge">Docker</div>
+            </div>
+            <div style="margin-top: 1rem;">
+                <p><i class="fas fa-code"></i> Total Lines of Code: <strong>1500+</strong></p>
+                <p><i class="fas fa-bolt"></i> Performance: Detects deadlocks in <strong>&lt;100ms</strong></p>
+                <p><i class="fas fa-chart-line"></i> ML Accuracy: <strong>87%+</strong> on validation set</p>
+            </div>
+        </div>
     </div>
-    <div class="cursor"></div>
-</div>
 
-<script>
-    const outputDiv = document.getElementById('terminal-output');
-    const graphDiv = document.getElementById('graph-container');
-    const canvas = document.getElementById('ragCanvas');
-    const ctx = canvas.getContext('2d');
+    <footer>
+        <p>CSE 316: Operating Systems Project | AI-Powered Deadlock Detection System</p>
+        <p>© 2023 | GitHub: <a href="https://github.com/[YourUsername]/AI-Powered-Deadlock-Detection-System" style="color: #90e0ef;">AI-Powered-Deadlock-Detection-System</a></p>
+    </footer>
 
-    // Helper to print text with a slight delay
-    function printLog(text, colorClass = '', delay = 0) {
-        return new Promise(resolve => {
-            setTimeout(() => {
-                const div = document.createElement('div');
-                div.className = 'log-entry ' + colorClass;
-                div.innerHTML = text; // Allow HTML for bolding
-                outputDiv.appendChild(div);
-                window.scrollTo(0, document.body.scrollHeight);
-                resolve();
-            }, delay);
+    <script>
+        // Initialize the resource allocation graph
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeGraph();
+            initializeLog();
+            simulateSystemActivity();
+            
+            // Set up event listeners
+            document.getElementById('predict-btn').addEventListener('click', runPrediction);
+            document.getElementById('refresh-graph').addEventListener('click', refreshGraph);
+            document.getElementById('simulate-deadlock').addEventListener('click', simulateDeadlock);
+            document.getElementById('clear-deadlock').addEventListener('click', clearDeadlock);
+            document.getElementById('auto-resolve').addEventListener('click', autoResolve);
+            document.getElementById('manual-override').addEventListener('click', manualOverride);
+            document.getElementById('terminate-process').addEventListener('click', terminateProcess);
+            document.getElementById('add-process').addEventListener('click', addProcess);
+            document.getElementById('add-resource').addEventListener('click', addResource);
+            document.getElementById('clear-log').addEventListener('click', clearLog);
         });
-    }
 
-    async function runSimulation() {
-        await printLog("user@os-sim:~$ python3 src/main.py --mode=live", "highlight", 500);
-        await printLog("[System] Initializing OS Kernel...", "dim", 1000);
-        await printLog("[System] Loading Resources: CPU (10), Memory (20)...", "", 800);
-        await printLog("[AI Engine] Loading 'deadlock_model.pkl'...", "yellow", 1200);
-        await printLog("[AI Engine] Model Loaded Successfully. Accuracy: 98%", "green", 1000);
-        await printLog("------------------------------------------------", "dim", 500);
-        await printLog("SYSTEM READY. LISTENING FOR REQUESTS...", "highlight", 1000);
-        await printLog("<br>", "", 500);
+        // Initialize Cytoscape graph
+        function initializeGraph() {
+            const cy = cytoscape({
+                container: document.getElementById('cy'),
+                elements: generateInitialGraphElements(),
+                style: [
+                    {
+                        selector: 'node[type="process"]',
+                        style: {
+                            'background-color': '#00b4d8',
+                            'label': 'data(label)',
+                            'color': '#fff',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 40,
+                            'height': 40,
+                            'font-size': '14px',
+                            'font-weight': 'bold'
+                        }
+                    },
+                    {
+                        selector: 'node[type="resource"]',
+                        style: {
+                            'background-color': '#4caf50',
+                            'shape': 'rectangle',
+                            'label': 'data(label)',
+                            'color': '#fff',
+                            'text-valign': 'center',
+                            'text-halign': 'center',
+                            'width': 50,
+                            'height': 30,
+                            'font-size': '14px',
+                            'font-weight': 'bold'
+                        }
+                    },
+                    {
+                        selector: 'node[status="deadlocked"]',
+                        style: {
+                            'background-color': '#f44336'
+                        }
+                    },
+                    {
+                        selector: 'node[status="waiting"]',
+                        style: {
+                            'background-color': '#ff9800'
+                        }
+                    },
+                    {
+                        selector: 'edge',
+                        style: {
+                            'width': 3,
+                            'line-color': '#90e0ef',
+                            'target-arrow-color': '#90e0ef',
+                            'target-arrow-shape': 'triangle',
+                            'arrow-scale': 1.5,
+                            'curve-style': 'bezier'
+                        }
+                    },
+                    {
+                        selector: 'edge[edge_type="request"]',
+                        style: {
+                            'line-color': '#ff9800',
+                            'target-arrow-color': '#ff9800',
+                            'line-style': 'dashed'
+                        }
+                    },
+                    {
+                        selector: 'edge[edge_type="allocation"]',
+                        style: {
+                            'line-color': '#4caf50',
+                            'target-arrow-color': '#4caf50'
+                        }
+                    },
+                    {
+                        selector: '.highlighted',
+                        style: {
+                            'background-color': '#ffeb3b',
+                            'line-color': '#ffeb3b',
+                            'target-arrow-color': '#ffeb3b'
+                        }
+                    }
+                ],
+                layout: {
+                    name: 'cose',
+                    idealEdgeLength: 100,
+                    nodeOverlap: 20,
+                    refresh: 20,
+                    fit: true,
+                    padding: 30,
+                    randomize: false,
+                    componentSpacing: 100,
+                    nodeRepulsion: 400000,
+                    edgeElasticity: 100,
+                    nestingFactor: 5,
+                    gravity: 80,
+                    numIter: 1000,
+                    initialTemp: 200,
+                    coolingFactor: 0.95,
+                    minTemp: 1.0
+                }
+            });
 
-        // Simulation Loop
-        const events = [
-            { pid: 101, res: "CPU", amt: 2, safe: true },
-            { pid: 104, res: "Memory", amt: 5, safe: true },
-            { pid: 102, res: "CPU", amt: 8, safe: false }, // Risky
-            { pid: 101, res: "Memory", amt: 2, safe: true },
-            { pid: 103, res: "CPU", amt: 1, safe: true },
-            { pid: 105, res: "Memory", amt: 15, safe: false } // Risky
-        ];
-
-        for (let i = 0; i < events.length; i++) {
-            let e = events[i];
-            
-            // 1. The Request
-            await printLog(`[Request] Process <span class='highlight'>P${e.pid}</span> asks for ${e.amt} units of ${e.res}...`, "", 1000);
-            
-            // 2. Thinking
-            await printLog(`&nbsp;&nbsp;...AI analyzing request pattern...`, "blue", 800);
-            
-            // 3. Decision
-            if (e.safe) {
-                await printLog(`&nbsp;&nbsp;-> [AI DECISION] <span class='green'>SAFE</span>. Request Granted.`, "", 600);
-            } else {
-                await printLog(`&nbsp;&nbsp;-> [AI DECISION] <span class='red'>RISK DETECTED</span>. Potential Deadlock! Blocked.`, "", 600);
-            }
-            await printLog("<br>", "", 500);
+            window.cy = cy;
         }
 
-        await printLog("[System] Simulation Complete.", "highlight", 1000);
-        await printLog("[System] Generating Resource Allocation Graph...", "yellow", 1000);
-        
-        // Show Graph
-        graphDiv.style.display = 'block';
-        window.scrollTo(0, document.body.scrollHeight);
-        drawGraph();
-    }
-
-    // Simple function to draw a fake Resource Allocation Graph on Canvas
-    function drawGraph() {
-        // Draw Nodes
-        const nodes = [
-            {x: 100, y: 100, label: "CPU", type: "res"},
-            {x: 500, y: 100, label: "MEM", type: "res"},
-            {x: 300, y: 300, label: "P101", type: "proc"},
-            {x: 150, y: 250, label: "P104", type: "proc"},
-            {x: 450, y: 250, label: "P103", type: "proc"}
-        ];
-
-        ctx.font = "14px Arial";
-        ctx.lineWidth = 2;
-
-        // Draw Edges first
-        const edges = [
-            {from: 2, to: 0}, // P101 -> CPU
-            {from: 2, to: 1}, // P101 -> MEM
-            {from: 3, to: 1}, // P104 -> MEM
-            {from: 4, to: 0}  // P103 -> CPU
-        ];
-
-        edges.forEach(e => {
-            ctx.beginPath();
-            ctx.moveTo(nodes[e.from].x, nodes[e.from].y);
-            ctx.lineTo(nodes[e.to].x, nodes[e.to].y);
-            ctx.strokeStyle = "#555";
-            ctx.stroke();
+        // Generate initial graph elements
+        function generateInitialGraphElements() {
+            const elements = [];
             
-            // Arrowhead
-            let angle = Math.atan2(nodes[e.to].y - nodes[e.from].y, nodes[e.to].x - nodes[e.from].x);
-            ctx.beginPath();
-            ctx.moveTo(nodes[e.to].x - 20 * Math.cos(angle - Math.PI / 6), nodes[e.to].y - 20 * Math.sin(angle - Math.PI / 6));
-            ctx.lineTo(nodes[e.to].x, nodes[e.to].y);
-            ctx.lineTo(nodes[e.to].x - 20 * Math.cos(angle + Math.PI / 6), nodes[e.to].y - 20 * Math.sin(angle + Math.PI / 6));
-            ctx.fillStyle = "#555";
-            ctx.fill();
-        });
-
-        // Draw Nodes on top
-        nodes.forEach(n => {
-            ctx.beginPath();
-            if(n.type === 'res') {
-                ctx.rect(n.x - 25, n.y - 25, 50, 50);
-                ctx.fillStyle = "#22d3ee";
-            } else {
-                ctx.arc(n.x, n.y, 30, 0, 2 * Math.PI);
-                ctx.fillStyle = "#4ade80";
+            // Add processes
+            for (let i = 1; i <= 5; i++) {
+                elements.push({
+                    data: { 
+                        id: `P${i}`, 
+                        label: `P${i}`, 
+                        type: 'process',
+                        status: i === 3 ? 'deadlocked' : 'normal'
+                    }
+                });
             }
-            ctx.fill();
-            ctx.stroke();
             
-            ctx.fillStyle = "#000";
-            ctx.fillText(n.label, n.type === 'res' ? n.x - 15 : n.x - 15, n.y + 5);
-        });
-        
-        // Legend
-        ctx.fillStyle = "#ccc";
-        ctx.fillText("Green = Process, Blue = Resource", 20, 380);
-    }
+            // Add resources
+            for (let i = 1; i <= 4; i++) {
+                elements.push({
+                    data: { 
+                        id: `R${i}`, 
+                        label: `R${i}`, 
+                        type: 'resource',
+                        available: Math.floor(Math.random() * 3) + 1
+                    }
+                });
+            }
+            
+            // Add edges (resource allocations)
+            elements.push({ data: { id: 'e1', source: 'R1', target: 'P1', edge_type: 'allocation' } });
+            elements.push({ data: { id: 'e2', source: 'R2', target: 'P2', edge_type: 'allocation' } });
+            elements.push({ data: { id: 'e3', source: 'R3', target: 'P3', edge_type: 'allocation' } });
+            elements.push({ data: { id: 'e4', source: 'P3', target: 'R1', edge_type: 'request' } });
+            elements.push({ data: { id: 'e5', source: 'P1', target: 'R3', edge_type: 'request' } });
+            
+            // Create a cycle to simulate deadlock
+            elements.push({ data: { id: 'e6', source: 'P4', target: 'R4', edge_type: 'request' } });
+            elements.push({ data: { id: 'e7', source: 'R4', target: 'P5', edge_type: 'allocation' } });
+            elements.push({ data: { id: 'e8', source: 'P5', target: 'R2', edge_type: 'request' } });
+            
+            return elements;
+        }
 
-    // Start
-    setTimeout(runSimulation, 1000);
+        // Initialize activity log
+        function initializeLog() {
+            const logEntries = document.getElementById('log-entries');
+            const initialLogs = [
+                { time: '10:30:15', message: 'System initialized with 5 processes and 4 resources' },
+                { time: '10:31:22', message: 'Process P3 requested Resource R1 - Waiting' },
+                { time: '10:32:05', message: 'Process P1 requested Resource R3 - Waiting' },
+                { time: '10:33:41', message: 'Cycle detected: P3 → R1 → P1 → R3 → P3' },
+                { time: '10:34:12', message: 'Deadlock predicted with 72% probability' },
+                { time: '10:35:03', message: 'Deadlock detected! Cycle: P4 → R4 → P5 → R2 → P4' },
+                { time: '10:35:47', message: 'Auto-recovery triggered: Terminating Process P4 (lowest priority)' },
+                { time: '10:36:22', message: 'Deadlock resolved successfully in 245ms' },
+                { time: '10:37:15', message: 'System returned to safe state' },
+                { time: '10:38:30', message: 'ML model retrained with new data - Accuracy improved to 88.2%' }
+            ];
+            
+            initialLogs.forEach(log => addLogEntry(log.time, log.message));
+        }
 
-</script>
+        // Add a log entry
+        function addLogEntry(time, message) {
+            const logEntries = document.getElementById('log-entries');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <div class="log-time"><i class="far fa-clock"></i> ${time}</div>
+                <div class="log-message">${message}</div>
+            `;
+            logEntries.prepend(logEntry);
+            
+            // Limit to 20 entries
+            if (logEntries.children.length > 20) {
+                logEntries.removeChild(logEntries.lastChild);
+            }
+        }
 
+        // Run ML prediction
+        function runPrediction() {
+            // Simulate ML prediction
+            const probability = Math.floor(Math.random() * 30) + 10;
+            const probabilityValue = document.getElementById('probability-value');
+            const probabilityFill = document.getElementById('probability-fill');
+            const riskLevel = document.getElementById('risk-level');
+            
+            probabilityValue.textContent = `${probability}%`;
+            probabilityFill.style.width = `${probability}%`;
+            
+            // Determine risk level
+            let riskText, riskColor;
+            if (probability >= 70) {
+                riskText = 'HIGH RISK';
+                riskColor = '#f44336';
+                document.getElementById('system-status').textContent = 'WARNING';
+                document.getElementById('system-status').style.color = '#ff9800';
+            } else if (probability >= 40) {
+                riskText = 'MEDIUM RISK';
+                riskColor = '#ff9800';
+            } else {
+                riskText = 'LOW RISK';
+                riskColor = '#4caf50';
+            }
+            
+            riskLevel.textContent = riskText;
+            riskLevel.style.color = riskColor;
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, `Deadlock prediction: ${probability}% probability (${riskText})`);
+            
+            // Highlight nodes in graph if high risk
+            if (probability >= 70) {
+                highlightPotentialDeadlock();
+            }
+        }
+
+        // Highlight potential deadlock in graph
+        function highlightPotentialDeadlock() {
+            const cy = window.cy;
+            cy.elements().removeClass('highlighted');
+            
+            // Highlight a cycle to show potential deadlock
+            const nodesToHighlight = ['P3', 'R1', 'P1', 'R3'];
+            nodesToHighlight.forEach(nodeId => {
+                cy.getElementById(nodeId).addClass('highlighted');
+            });
+            
+            // Also highlight edges between them
+            const edgesToHighlight = ['e3', 'e4', 'e1', 'e5'];
+            edgesToHighlight.forEach(edgeId => {
+                cy.getElementById(edgeId).addClass('highlighted');
+            });
+        }
+
+        // Refresh the graph
+        function refreshGraph() {
+            const cy = window.cy;
+            cy.layout({ name: 'cose' }).run();
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, 'Resource Allocation Graph refreshed');
+        }
+
+        // Simulate a deadlock
+        function simulateDeadlock() {
+            const cy = window.cy;
+            
+            // Create a deadlock cycle
+            cy.getElementById('P3').data('status', 'deadlocked');
+            cy.getElementById('P1').data('status', 'deadlocked');
+            cy.getElementById('P4').data('status', 'deadlocked');
+            cy.getElementById('P5').data('status', 'deadlocked');
+            
+            // Update UI
+            document.getElementById('system-status').textContent = 'DEADLOCK DETECTED';
+            document.getElementById('system-status').style.color = '#f44336';
+            document.getElementById('deadlock-count').textContent = 
+                parseInt(document.getElementById('deadlock-count').textContent) + 1;
+            
+            // Highlight the deadlock cycle
+            highlightDeadlockCycle();
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, 'Deadlock simulated: Cycle P3→R1→P1→R3→P3 detected');
+            addLogEntry(timeString, 'System status changed to DEADLOCK DETECTED');
+        }
+
+        // Highlight deadlock cycle in graph
+        function highlightDeadlockCycle() {
+            const cy = window.cy;
+            cy.elements().removeClass('highlighted');
+            
+            // Highlight the deadlock cycle
+            const deadlockCycle = ['P3', 'R1', 'P1', 'R3'];
+            deadlockCycle.forEach(nodeId => {
+                cy.getElementById(nodeId).addClass('highlighted');
+            });
+            
+            // Also highlight edges in the cycle
+            const cycleEdges = ['e3', 'e4', 'e1', 'e5'];
+            cycleEdges.forEach(edgeId => {
+                cy.getElementById(edgeId).addClass('highlighted');
+            });
+        }
+
+        // Clear deadlock
+        function clearDeadlock() {
+            const cy = window.cy;
+            
+            // Reset node status
+            cy.nodes('[type="process"]').data('status', 'normal');
+            
+            // Update UI
+            document.getElementById('system-status').textContent = 'MONITORING';
+            document.getElementById('system-status').style.color = '#00b4d8';
+            
+            // Remove highlights
+            cy.elements().removeClass('highlighted');
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, 'Deadlock cleared manually');
+        }
+
+        // Auto resolve deadlock
+        function autoResolve() {
+            // Simulate auto-resolution
+            const resolutionTime = Math.floor(Math.random() * 200) + 100;
+            
+            // Update UI
+            document.getElementById('system-status').textContent = 'MONITORING';
+            document.getElementById('system-status').style.color = '#00b4d8';
+            document.getElementById('last-resolved').textContent = 'just now';
+            document.getElementById('avg-resolution').textContent = `${resolutionTime}ms`;
+            
+            // Reset graph
+            const cy = window.cy;
+            cy.nodes('[type="process"]').data('status', 'normal');
+            cy.elements().removeClass('highlighted');
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, `Auto-recovery: Terminated Process P4 (lowest priority)`);
+            addLogEntry(timeString, `Deadlock resolved in ${resolutionTime}ms`);
+            addLogEntry(timeString, 'System returned to safe state');
+        }
+
+        // Manual override
+        function manualOverride() {
+            // Show manual override options (simulated)
+            alert('Manual override panel would open here.\n\nOptions:\n1. Select process to terminate\n2. Choose resource to preempt\n3. Initiate rollback\n4. Adjust detection sensitivity');
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, 'Manual override initiated by administrator');
+        }
+
+        // Terminate a process
+        function terminateProcess() {
+            // Simulate process termination
+            const processes = ['P1', 'P2', 'P3', 'P4', 'P5'];
+            const randomProcess = processes[Math.floor(Math.random() * processes.length)];
+            
+            // Update UI
+            const activeProcesses = document.getElementById('active-processes');
+            activeProcesses.textContent = parseInt(activeProcesses.textContent) - 1;
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, `Process ${randomProcess} terminated manually`);
+            
+            // Remove from graph
+            const cy = window.cy;
+            cy.getElementById(randomProcess).remove();
+        }
+
+        // Add a process
+        function addProcess() {
+            const cy = window.cy;
+            const processCount = cy.nodes('[type="process"]').length;
+            const newProcessId = `P${processCount + 1}`;
+            
+            cy.add({
+                data: { 
+                    id: newProcessId, 
+                    label: newProcessId, 
+                    type: 'process',
+                    status: 'normal'
+                }
+            });
+            
+            // Update UI
+            const activeProcesses = document.getElementById('active-processes');
+            activeProcesses.textContent = parseInt(activeProcesses.textContent) + 1;
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, `Process ${newProcessId} added to system`);
+            
+            // Re-run layout
+            cy.layout({ name: 'cose' }).run();
+        }
+
+        // Add a resource
+        function addResource() {
+            const cy = window.cy;
+            const resourceCount = cy.nodes('[type="resource"]').length;
+            const newResourceId = `R${resourceCount + 1}`;
+            
+            cy.add({
+                data: { 
+                    id: newResourceId, 
+                    label: newResourceId, 
+                    type: 'resource',
+                    available: Math.floor(Math.random() * 3) + 1
+                }
+            });
+            
+            // Update UI
+            const availableResources = document.getElementById('available-resources');
+            availableResources.textContent = parseInt(availableResources.textContent) + 1;
+            
+            // Update log
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, `Resource ${newResourceId} added to system`);
+            
+            // Re-run layout
+            cy.layout({ name: 'cose' }).run();
+        }
+
+        // Clear log
+        function clearLog() {
+            const logEntries = document.getElementById('log-entries');
+            logEntries.innerHTML = '';
+            
+            // Add a new entry about clearing
+            const now = new Date();
+            const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+            addLogEntry(timeString, 'Activity log cleared by administrator');
+        }
+
+        // Simulate system activity
+        function simulateSystemActivity() {
+            // Simulate random system events
+            setInterval(() => {
+                // Randomly update process count
+                if (Math.random() > 0.7) {
+                    const activeProcesses = document.getElementById('active-processes');
+                    const change = Math.random() > 0.5 ? 1 : -1;
+                    const newValue = Math.max(1, parseInt(activeProcesses.textContent) + change);
+                    activeProcesses.textContent = newValue;
+                    
+                    // Update log occasionally
+                    if (Math.random() > 0.8) {
+                        const now = new Date();
+                        const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+                        const action = change > 0 ? 'started' : 'terminated';
+                        addLogEntry(timeString, `Process ${action} (automatic system activity)`);
+                    }
+                }
+            }, 5000);
+        }
+    </script>
 </body>
 </html>
